@@ -162,7 +162,7 @@ const GroupManagement: React.FC = () => {
   };
 
   const handleLeaveGroup = async () => {
-    if (!confirm('정말로 그룹에서 나가시겠습니까?')) {
+    if (!window.confirm('정말로 그룹에서 나가시겠습니까?')) {
       return;
     }
 
