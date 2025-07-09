@@ -40,7 +40,7 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (userData: any) => api.post('/auth/register', userData),
   login: (credentials: any) => api.post('/auth/login', credentials),
-  getMe: () => api.get('/auth/me'),
+  getMe: () => api.get('/auth/verify'),
 };
 
 // 그룹 API
@@ -49,15 +49,14 @@ export const groupAPI = {
   invite: (username: string) => api.post('/groups/invite', { username }),
   getMyGroup: () => api.get('/groups/my-group'),
   leave: () => api.post('/groups/leave'),
-  setTimeSlots: (timeSlots: any[]) => api.post('/groups/time-slots', { timeSlots }),
+  setTimeSlots: (timeSlots: any[]) => api.post('/groups/timeslots', { timeSlots }),
 };
 
 // 매칭 API
 export const matchingAPI = {
-  findMatch: () => api.post('/matching/find-match'),
+  findMatch: () => api.post('/matching/start'),
   getStatus: () => api.get('/matching/status'),
   cancel: () => api.post('/matching/cancel'),
-  getAvailableGroups: () => api.get('/matching/available-groups'),
 };
 
 export default api;

@@ -6,6 +6,7 @@ interface User {
   username: string;
   email: string;
   university: string;
+  department: string;
   gender: string;
   age: number;
   currentGroup?: any;

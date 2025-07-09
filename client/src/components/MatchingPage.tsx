@@ -27,25 +27,9 @@ interface MatchingStatus {
   canStartMatching: boolean;
 }
 
-interface AvailableGroup {
-  _id: string;
-  name: string;
-  university: string;
-  members: Array<{
-    _id: string;
-    username: string;
-  }>;
-  availableTimeSlots: Array<{
-    date: string;
-    startTime: string;
-    endTime: string;
-  }>;
-}
-
 const MatchingPage: React.FC = () => {
   const { user } = useAuth();
   const [matchingStatus, setMatchingStatus] = useState<MatchingStatus | null>(null);
-  const [availableGroups, setAvailableGroups] = useState<AvailableGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -58,13 +42,8 @@ const MatchingPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statusResponse, availableResponse] = await Promise.all([
-        matchingAPI.getStatus(),
-        matchingAPI.getAvailableGroups().catch(() => ({ data: { availableGroups: [] } }))
-      ]);
-
+      const statusResponse = await matchingAPI.getStatus();
       setMatchingStatus(statusResponse.data);
-      setAvailableGroups(availableResponse.data.availableGroups || []);
     } catch (error: any) {
       setError('데이터 로딩에 실패했습니다.');
       console.error('매칭 데이터 로딩 오류:', error);
@@ -81,7 +60,7 @@ const MatchingPage: React.FC = () => {
     try {
       const response = await matchingAPI.findMatch();
       
-      if (response.data.matchFound) {
+      if (response.data.matchedGroup) {
         setSuccess('🎉 매칭이 성사되었습니다! 상대방 그룹과 매칭되었어요.');
         fetchData(); // 데이터 새로고침
       } else {
@@ -168,12 +147,6 @@ const MatchingPage: React.FC = () => {
         <div className="card">
           <h3>매칭 시작하기</h3>
           <p>그룹이 준비되었습니다! 매칭을 시작해보세요.</p>
-          
-          {availableGroups.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <p><strong>현재 매칭 가능한 그룹 수:</strong> {availableGroups.length}개</p>
-            </div>
-          )}
 
           <button 
             onClick={handleFindMatch}
@@ -235,55 +208,6 @@ const MatchingPage: React.FC = () => {
           >
             매칭 취소
           </button>
-        </div>
-      )}
-
-      {/* 매칭 가능한 그룹 목록 */}
-      {matchingStatus.canStartMatching && availableGroups.length > 0 && (
-        <div className="card">
-          <h3>매칭 가능한 그룹들 ({availableGroups.length}개)</h3>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-            시간대가 겹치고 조건에 맞는 그룹들입니다.
-          </p>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {availableGroups.map((group) => (
-              <div key={group._id} style={{
-                padding: '1rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#f8f9fa'
-              }}>
-                <h4>{group.name}</h4>
-                <p><strong>대학교:</strong> {group.university}</p>
-                <div>
-                  <strong>멤버:</strong>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                    {group.members.map((member) => (
-                      <span key={member._id} style={{
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'white',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem'
-                      }}>
-                        {member.username}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <strong>가능한 시간:</strong>
-                  <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                    {group.availableTimeSlots.map((slot, index) => (
-                      <div key={index}>
-                        {new Date(slot.date).toLocaleDateString()} {slot.startTime}-{slot.endTime}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
