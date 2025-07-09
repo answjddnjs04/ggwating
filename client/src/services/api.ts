@@ -9,32 +9,34 @@ const getApiBaseUrl = () => {
   console.log('🌐 현재 환경:', { hostname, port, protocol, href: window.location.href });
   
   // GitHub Codespaces 환경 감지
-  if (hostname.includes('github.dev') || hostname.includes('.app.github.dev')) {
-    // GitHub Codespaces의 경우 포트 5000으로 변경
-    const baseUrl = `${protocol}//${hostname.replace('-3000', '-5000')}/api`;
+  if (hostname.includes('.app.github.dev')) {
+    // GitHub Codespaces의 경우 포트 3001로 변경
+    const baseUrl = `${protocol}//${hostname.replace('-3000', '-3001')}/api`;
     console.log('🚀 GitHub Codespaces 감지! API URL:', baseUrl);
     return baseUrl;
   }
   
   // 로컬 개발 환경
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5000/api';
+    console.log('🔧 로컬 환경 감지! API URL: http://localhost:3001/api');
+    return 'http://localhost:3001/api';
   }
   
-  // 기타 배포 환경 (Vercel, Netlify 등)
+  // 기타 배포 환경 (Vercel, Netlify, GitHub Pages 등)
+  console.log('🚀 배포 환경 감지! API URL: /api');
   return '/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-console.log('🔗 API Base URL:', API_BASE_URL);
+console.log('🔗 최종 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10초 타임아웃 추가
+  timeout: 10000, // 10초 타임아웃
 });
 
 // 요청 인터셉터 - 토큰 자동 추가 및 로깅

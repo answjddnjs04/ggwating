@@ -17,7 +17,15 @@ const io = socketIO(server, {
 });
 
 // 미들웨어
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000", 
+    "http://localhost:3001",
+    /https:\/\/.*\.app\.github\.dev/,  // GitHub Codespaces
+    "https://answjddnjs04.github.io"   // GitHub Pages
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // 정적 파일 제공 (빌드된 React 앱)
@@ -55,7 +63,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // 서버 시작
 async function startServer() {
