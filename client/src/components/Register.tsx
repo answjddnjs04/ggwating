@@ -63,6 +63,12 @@ const Register: React.FC = () => {
     try {
       const { confirmPassword, ...submitData } = formData;
       
+      console.log('🚀 회원가입 시도:', {
+        ...submitData,
+        password: '[HIDDEN]',
+        age: ageNum
+      });
+      
       await register({
         ...submitData,
         age: ageNum
@@ -71,8 +77,21 @@ const Register: React.FC = () => {
       alert('회원가입이 완료되었습니다! 🎉');
       navigate('/dashboard');
     } catch (err: any) {
-      console.error('회원가입 에러:', err);
-      setError(err.message || '회원가입 중 오류가 발생했습니다.');
+      console.error('🚨 회원가입 상세 에러:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        code: err.code,
+        stack: err.stack
+      });
+      
+      if (err.code === 'ERR_NETWORK' || err.code === 'ERR_CONNECTION_REFUSED') {
+        setError('🔌 서버에 연결할 수 없습니다. 인터넷 연결을 확인하거나 나중에 다시 시도해주세요.');
+      } else if (err.response?.data?.message) {
+        setError(`❌ ${err.response.data.message}`);
+      } else {
+        setError(`💥 회원가입 중 오류가 발생했습니다: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }

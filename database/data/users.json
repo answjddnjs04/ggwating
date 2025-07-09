@@ -26,5 +26,19 @@
     "currentGroup": null,
     "createdAt": "2025-07-09T10:34:55.076Z",
     "updatedAt": "2025-07-09T10:34:55.076Z"
+  },
+  {
+    "_id": "1752059008485",
+    "username": "testuser",
+    "email": "test@test.com",
+    "password": "$2a$10$xxKVK5cnhAyFqYBYXZf.oeke/g1/SLMdFuOR/zkFyx1KYBERtt8kq",
+    "university": "테스트대학교",
+    "department": "테스트학과",
+    "gender": "male",
+    "age": 22,
+    "phone": "010-1234-5678",
+    "currentGroup": null,
+    "createdAt": "2025-07-09T11:03:28.485Z",
+    "updatedAt": "2025-07-09T11:03:28.485Z"
   }
 ]
