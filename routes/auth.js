@@ -1,60 +1,60 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const router = express.Router();
+const db = require('../database/jsonDB');
 
-// JWT 토큰 생성 함수
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
+const router = express.Router();
 
 // 회원가입
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, university, gender, age, phoneNumber } = req.body;
+    const { username, email, password, university, gender, age, phone } = req.body;
 
-    // 입력 검증
-    if (!username || !email || !password || !university || !gender || !age || !phoneNumber) {
-      return res.status(400).json({ message: '모든 필드를 입력해주세요.' });
-    }
-
-    // 이메일 중복 확인
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-    
+    // 기존 사용자 확인
+    const existingUser = await db.findUser({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        message: '이미 사용중인 이메일 또는 사용자명입니다.' 
-      });
+      return res.status(400).json({ message: '이미 등록된 이메일입니다.' });
     }
 
-    // 새 사용자 생성
-    const user = new User({
+    const existingUsername = await db.findUser({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: '이미 사용 중인 사용자명입니다.' });
+    }
+
+    // 비밀번호 해시화
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 사용자 생성
+    const newUser = await db.createUser({
       username,
       email,
-      password,
+      password: hashedPassword,
       university,
       gender,
-      age,
-      phoneNumber
+      age: parseInt(age),
+      phone,
+      currentGroup: null
     });
 
-    await user.save();
-
-    // 토큰 생성
-    const token = generateToken(user._id);
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      { userId: newUser._id },
+      process.env.JWT_SECRET || 'fallback_secret_key',
+      { expiresIn: '24h' }
+    );
 
     res.status(201).json({
       message: '회원가입이 완료되었습니다.',
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        university: user.university,
-        gender: user.gender,
-        age: user.age
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+        university: newUser.university,
+        gender: newUser.gender,
+        age: newUser.age,
+        currentGroup: newUser.currentGroup
       }
     });
   } catch (error) {
@@ -68,25 +68,24 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 입력 검증
-    if (!email || !password) {
-      return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
-    }
-
     // 사용자 찾기
-    const user = await User.findOne({ email }).populate('currentGroup');
+    const user = await db.findUser({ email });
     if (!user) {
-      return res.status(400).json({ message: '존재하지 않는 사용자입니다.' });
+      return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
-    // 비밀번호 검증
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: '비밀번호가 올바르지 않습니다.' });
+    // 비밀번호 확인
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
-    // 토큰 생성
-    const token = generateToken(user._id);
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || 'fallback_secret_key',
+      { expiresIn: '24h' }
+    );
 
     res.json({
       message: '로그인 성공',
@@ -107,45 +106,37 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 토큰 검증 미들웨어
-const authenticateToken = async (req, res, next) => {
+// 토큰 검증
+router.get('/verify', async (req, res) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
     if (!token) {
-      return res.status(401).json({ message: '접근 토큰이 필요합니다.' });
+      return res.status(401).json({ message: '토큰이 없습니다.' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).populate('currentGroup');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
+    const user = await db.findUser({ _id: decoded.userId });
     
     if (!user) {
       return res.status(401).json({ message: '유효하지 않은 토큰입니다.' });
     }
 
-    req.user = user;
-    next();
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        university: user.university,
+        gender: user.gender,
+        age: user.age,
+        currentGroup: user.currentGroup
+      }
+    });
   } catch (error) {
     console.error('토큰 검증 오류:', error);
     res.status(401).json({ message: '유효하지 않은 토큰입니다.' });
   }
-};
-
-// 사용자 정보 조회
-router.get('/me', authenticateToken, (req, res) => {
-  res.json({
-    user: {
-      id: req.user._id,
-      username: req.user.username,
-      email: req.user.email,
-      university: req.user.university,
-      gender: req.user.gender,
-      age: req.user.age,
-      currentGroup: req.user.currentGroup
-    }
-  });
 });
 
 module.exports = router;
-module.exports.authenticateToken = authenticateToken;
