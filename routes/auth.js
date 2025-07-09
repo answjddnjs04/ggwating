@@ -8,7 +8,56 @@ const router = express.Router();
 // 회원가입
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, university, gender, age, phone } = req.body;
+    const { username, email, password, university, department, gender, age, phone } = req.body;
+
+    // 필수 필드 검증
+    if (!username || !email || !password || !university || !department || !gender || !age || !phone) {
+      return res.status(400).json({ 
+        message: '모든 필드를 입력해주세요.',
+        required: ['username', 'email', 'password', 'university', 'department', 'gender', 'age', 'phone']
+      });
+    }
+
+    // 사용자명 검증
+    if (username.length < 2 || username.length > 20) {
+      return res.status(400).json({ message: '사용자명은 2-20글자여야 합니다.' });
+    }
+    
+    if (!/^[가-힣a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({ message: '사용자명은 한글, 영문, 숫자, 언더스코어만 사용 가능합니다.' });
+    }
+
+    // 이메일 검증
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: '올바른 이메일 형식이 아닙니다.' });
+    }
+
+    // 비밀번호 검증
+    if (password.length < 6) {
+      return res.status(400).json({ message: '비밀번호는 6글자 이상이어야 합니다.' });
+    }
+    
+    if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
+      return res.status(400).json({ message: '비밀번호는 영문과 숫자를 포함해야 합니다.' });
+    }
+
+    // 나이 검증
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 18 || ageNum > 30) {
+      return res.status(400).json({ message: '나이는 18-30세여야 합니다.' });
+    }
+
+    // 전화번호 검증
+    const phoneRegex = /^010-\d{4}-\d{4}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ message: '전화번호는 010-0000-0000 형식이어야 합니다.' });
+    }
+
+    // 성별 검증
+    if (!['male', 'female'].includes(gender)) {
+      return res.status(400).json({ message: '올바른 성별을 선택해주세요.' });
+    }
 
     // 기존 사용자 확인
     const existingUser = await db.findUser({ email });
@@ -31,8 +80,9 @@ router.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       university,
+      department, // 학과 추가
       gender,
-      age: parseInt(age),
+      age: ageNum,
       phone,
       currentGroup: null
     });
@@ -52,6 +102,7 @@ router.post('/register', async (req, res) => {
         username: newUser.username,
         email: newUser.email,
         university: newUser.university,
+        department: newUser.department, // 학과 추가
         gender: newUser.gender,
         age: newUser.age,
         currentGroup: newUser.currentGroup
@@ -67,6 +118,11 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // 필수 필드 검증
+    if (!email || !password) {
+      return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
+    }
 
     // 사용자 찾기
     const user = await db.findUser({ email });
@@ -95,6 +151,7 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         university: user.university,
+        department: user.department, // 학과 추가
         gender: user.gender,
         age: user.age,
         currentGroup: user.currentGroup
@@ -128,6 +185,7 @@ router.get('/verify', async (req, res) => {
         username: user.username,
         email: user.email,
         university: user.university,
+        department: user.department, // 학과 추가
         gender: user.gender,
         age: user.age,
         currentGroup: user.currentGroup

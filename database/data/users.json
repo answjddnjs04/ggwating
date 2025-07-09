@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "_id": "1752056563571",
+    "username": "테스트유저",
+    "email": "test@example.com",
+    "password": "$2a$10$jzwo2ypHvZ/mdH3gnGAT.u0cYAA7yXBoPs8X/SgYN6qZq9KjwnIqm",
+    "university": "서울대학교",
+    "department": "컴퓨터공학과",
+    "gender": "male",
+    "age": 21,
+    "phone": "010-1234-5678",
+    "currentGroup": null,
+    "createdAt": "2025-07-09T10:22:43.571Z",
+    "updatedAt": "2025-07-09T10:22:43.571Z"
+  }
+]
