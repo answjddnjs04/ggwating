@@ -24,36 +24,92 @@ const Register: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // 에러 메시지 초기화
+    // 에러 초기화
     if (error) {
       setError('');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateForm = () => {
     const { username, email, password, confirmPassword, university, department, gender, age, phone } = formData;
 
-    // 기본 유효성 검사
-    if (!username || !email || !password || !confirmPassword || !university || !department || !gender || !age || !phone) {
-      setError('모든 필드를 입력해주세요.');
-      return;
+    if (!username.trim()) {
+      setError('사용자명을 입력해주세요.');
+      return false;
+    }
+
+    if (username.length < 2 || username.length > 20) {
+      setError('사용자명은 2-20글자 사이여야 합니다.');
+      return false;
+    }
+
+    if (!email.trim()) {
+      setError('이메일을 입력해주세요.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('올바른 이메일 형식이 아닙니다.');
+      return false;
+    }
+
+    if (!password) {
+      setError('비밀번호를 입력해주세요.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError('비밀번호는 최소 6글자 이상이어야 합니다.');
+      return false;
     }
 
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
-      return;
+      return false;
     }
 
-    if (password.length < 6) {
-      setError('비밀번호는 최소 6자리 이상이어야 합니다.');
-      return;
+    if (!university.trim()) {
+      setError('대학교를 입력해주세요.');
+      return false;
+    }
+
+    if (!department.trim()) {
+      setError('학과를 입력해주세요.');
+      return false;
+    }
+
+    if (!gender) {
+      setError('성별을 선택해주세요.');
+      return false;
     }
 
     const ageNum = parseInt(age);
+    if (!age || isNaN(ageNum)) {
+      setError('나이를 입력해주세요.');
+      return false;
+    }
+
     if (ageNum < 18 || ageNum > 30) {
       setError('나이는 18세 이상 30세 이하여야 합니다.');
+      return false;
+    }
+
+    if (!phone.trim()) {
+      setError('전화번호를 입력해주세요.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    console.log('🎯 회원가입 폼 제출 시작');
+    
+    if (!validateForm()) {
+      console.log('❌ 폼 유효성 검사 실패:', error);
       return;
     }
 
@@ -63,35 +119,33 @@ const Register: React.FC = () => {
     try {
       const { confirmPassword, ...submitData } = formData;
       
-      console.log('🚀 회원가입 시도:', {
+      console.log('� 제출할 데이터:', {
         ...submitData,
-        password: '[HIDDEN]',
-        age: ageNum
+        password: '[보안상 숨김]',
+        age: parseInt(submitData.age)
       });
       
       await register({
         ...submitData,
-        age: ageNum
+        age: parseInt(submitData.age)
       });
       
-      alert('회원가입이 완료되었습니다! 🎉');
+      console.log('✅ 회원가입 성공!');
+      alert('🎉 회원가입이 완료되었습니다!');
       navigate('/dashboard');
-    } catch (err: any) {
-      console.error('🚨 회원가입 상세 에러:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        code: err.code,
-        stack: err.stack
-      });
       
-      if (err.code === 'ERR_NETWORK' || err.code === 'ERR_CONNECTION_REFUSED') {
-        setError('🔌 서버에 연결할 수 없습니다. 인터넷 연결을 확인하거나 나중에 다시 시도해주세요.');
-      } else if (err.response?.data?.message) {
-        setError(`❌ ${err.response.data.message}`);
-      } else {
-        setError(`💥 회원가입 중 오류가 발생했습니다: ${err.message}`);
+    } catch (err: any) {
+      console.error('❌ 회원가입 실패:', err);
+      
+      let errorMessage = '회원가입 중 오류가 발생했습니다.';
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -105,27 +159,28 @@ const Register: React.FC = () => {
       </p>
       
       {error && (
-        <div className="alert alert-error">
+        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="username">사용자명</label>
+          <label htmlFor="username">사용자명 *</label>
           <input
             type="text"
             id="username"
             name="username"
             value={formData.username}
             onChange={handleChange}
-            placeholder="사용자명을 입력하세요"
+            placeholder="사용자명을 입력하세요 (2-20글자)"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="email">이메일</label>
+          <label htmlFor="email">이메일 *</label>
           <input
             type="email"
             id="email"
@@ -134,24 +189,26 @@ const Register: React.FC = () => {
             onChange={handleChange}
             placeholder="이메일을 입력하세요"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="password">비밀번호</label>
+          <label htmlFor="password">비밀번호 *</label>
           <input
             type="password"
             id="password"
             name="password"
             value={formData.password}
             onChange={handleChange}
-            placeholder="비밀번호를 입력하세요 (최소 6자리)"
+            placeholder="비밀번호를 입력하세요 (최소 6글자)"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="confirmPassword">비밀번호 확인</label>
+          <label htmlFor="confirmPassword">비밀번호 확인 *</label>
           <input
             type="password"
             id="confirmPassword"
@@ -160,11 +217,12 @@ const Register: React.FC = () => {
             onChange={handleChange}
             placeholder="비밀번호를 다시 입력하세요"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="university">대학교</label>
+          <label htmlFor="university">대학교 *</label>
           <input
             type="text"
             id="university"
@@ -173,6 +231,7 @@ const Register: React.FC = () => {
             onChange={handleChange}
             placeholder="대학교명을 입력하세요 (예: 이화여자대학교)"
             required
+            disabled={loading}
           />
           <small style={{ color: '#666', fontSize: '0.85rem' }}>
             * 추후 재학증명서로 인증할 예정입니다
@@ -180,7 +239,7 @@ const Register: React.FC = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="department">학과</label>
+          <label htmlFor="department">학과 *</label>
           <input
             type="text"
             id="department"
@@ -189,6 +248,7 @@ const Register: React.FC = () => {
             onChange={handleChange}
             placeholder="학과명을 입력하세요 (예: 컴퓨터공학과)"
             required
+            disabled={loading}
           />
           <small style={{ color: '#666', fontSize: '0.85rem' }}>
             * 추후 재학증명서로 인증할 예정입니다
@@ -196,13 +256,14 @@ const Register: React.FC = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="gender">성별</label>
+          <label htmlFor="gender">성별 *</label>
           <select
             id="gender"
             name="gender"
             value={formData.gender}
             onChange={handleChange}
             required
+            disabled={loading}
           >
             <option value="">성별을 선택하세요</option>
             <option value="male">남성</option>
@@ -211,7 +272,7 @@ const Register: React.FC = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="age">나이</label>
+          <label htmlFor="age">나이 *</label>
           <input
             type="number"
             id="age"
@@ -222,11 +283,12 @@ const Register: React.FC = () => {
             min="18"
             max="30"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="phone">전화번호</label>
+          <label htmlFor="phone">전화번호 *</label>
           <input
             type="tel"
             id="phone"
@@ -235,6 +297,7 @@ const Register: React.FC = () => {
             onChange={handleChange}
             placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
             required
+            disabled={loading}
           />
         </div>
 
@@ -242,8 +305,12 @@ const Register: React.FC = () => {
           type="submit" 
           className="btn btn-primary btn-full"
           disabled={loading}
+          style={{ 
+            opacity: loading ? 0.7 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
         >
-          {loading ? '가입 중...' : '🎉 회원가입'}
+          {loading ? '회원가입 처리 중...' : '🎉 회원가입'}
         </button>
       </form>
 
