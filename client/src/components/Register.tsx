@@ -64,6 +64,12 @@ const Register: React.FC = () => {
       return false;
     }
 
+    // 영문과 숫자 포함 검사 추가
+    if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
+      setError('비밀번호는 영문과 숫자를 모두 포함해야 합니다.');
+      return false;
+    }
+
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
       return false;
@@ -201,10 +207,13 @@ const Register: React.FC = () => {
             name="password"
             value={formData.password}
             onChange={handleChange}
-            placeholder="비밀번호를 입력하세요 (최소 6글자)"
+            placeholder="비밀번호를 입력하세요 (영문+숫자 포함, 최소 6글자)"
             required
             disabled={loading}
           />
+          <small style={{ color: '#666', fontSize: '0.85rem' }}>
+            * 영문자와 숫자를 모두 포함해야 합니다 (예: abc123, hello1)
+          </small>
         </div>
 
         <div className="form-group">

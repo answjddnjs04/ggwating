@@ -14,20 +14,6 @@
     "updatedAt": "2025-07-09T10:22:43.571Z"
   },
   {
-    "_id": "1752057295076",
-    "username": "문제이원",
-    "email": "infinitefoever@naver.com",
-    "password": "$2a$10$gWRA8XqjvCDVVeFDKWQetO0OYhRUJj919gyvBBAthlvaKUkYVHzdK",
-    "university": "이화여자대학교",
-    "department": "컴퓨터공학과",
-    "gender": "male",
-    "age": 22,
-    "phone": "010-9821-0820",
-    "currentGroup": null,
-    "createdAt": "2025-07-09T10:34:55.076Z",
-    "updatedAt": "2025-07-09T10:34:55.076Z"
-  },
-  {
     "_id": "1752059008485",
     "username": "testuser",
     "email": "test@test.com",
