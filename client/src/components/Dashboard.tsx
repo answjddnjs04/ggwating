@@ -121,12 +121,12 @@ const Dashboard: React.FC = () => {
               </span>
             </p>
             <div>
-              <strong>멤버 ({groupInfo.members.length}/3명):</strong>
+              <strong>멤버 ({(groupInfo.members || []).length}/3명):</strong>
               <div className="group-members">
-                {groupInfo.members.map((member) => (
+                {(groupInfo.members || []).map((member) => (
                   <div key={member._id} className="member-item">
                     <span>{member.username}</span>
-                    {member._id === groupInfo.leader._id && (
+                    {member._id === groupInfo.leader?._id && (
                       <span className="member-role">리더</span>
                     )}
                   </div>
@@ -134,11 +134,11 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             
-            {groupInfo.availableTimeSlots.length > 0 && (
+            {(groupInfo.availableTimeSlots || []).length > 0 && (
               <div style={{ marginTop: '1rem' }}>
                 <strong>설정된 시간대:</strong>
                 <div className="time-slots">
-                  {groupInfo.availableTimeSlots.map((slot, index) => (
+                  {(groupInfo.availableTimeSlots || []).map((slot, index) => (
                     <div key={index} className="time-slot">
                       <span>
                         {new Date(slot.date).toLocaleDateString()} 

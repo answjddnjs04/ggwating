@@ -173,7 +173,7 @@ const MatchingPage: React.FC = () => {
             <div>
               <strong>상대방 멤버:</strong>
               <div className="group-members">
-                {matchingStatus.group.currentMatch.members.map((member) => (
+                {(matchingStatus.group.currentMatch.members || []).map((member) => (
                   <div key={member._id} className="member-item">
                     <span>{member.username}</span>
                   </div>

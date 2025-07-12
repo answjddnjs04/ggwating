@@ -225,12 +225,12 @@ const GroupManagement: React.FC = () => {
             <p><strong>상태:</strong> {groupInfo.status}</p>
             <p><strong>리더:</strong> {groupInfo.leader.username}</p>
             
-            <h4>멤버 ({groupInfo.members.length}/3명)</h4>
+            <h4>멤버 ({(groupInfo.members || []).length}/3명)</h4>
             <div className="group-members">
-              {groupInfo.members.map((member) => (
+              {(groupInfo.members || []).map((member) => (
                 <div key={member._id} className="member-item">
                   <span>{member.username}</span>
-                  {member._id === groupInfo.leader._id && (
+                  {member._id === groupInfo.leader?._id && (
                     <span className="member-role">리더</span>
                   )}
                 </div>
@@ -248,7 +248,7 @@ const GroupManagement: React.FC = () => {
           </div>
 
           {/* 멤버 초대 (리더만) */}
-          {isGroupLeader() && groupInfo.members.length < 3 && (
+          {isGroupLeader() && (groupInfo.members || []).length < 3 && (
             <div className="card">
               <h3>멤버 초대</h3>
               <form onSubmit={handleInviteMember}>
@@ -275,15 +275,15 @@ const GroupManagement: React.FC = () => {
           )}
 
           {/* 시간대 설정 (리더만, 멤버가 3명일 때) */}
-          {isGroupLeader() && groupInfo.members.length === 3 && (
+          {isGroupLeader() && (groupInfo.members || []).length === 3 && (
             <div className="card">
               <h3>과팅 가능 시간대 설정</h3>
               
-              {groupInfo.availableTimeSlots.length > 0 && (
+              {(groupInfo.availableTimeSlots || []).length > 0 && (
                 <div style={{ marginBottom: '1rem' }}>
                   <h4>현재 설정된 시간대:</h4>
                   <div className="time-slots">
-                    {groupInfo.availableTimeSlots.map((slot, index) => (
+                    {(groupInfo.availableTimeSlots || []).map((slot, index) => (
                       <div key={index} className="time-slot">
                         <span>
                           {new Date(slot.date).toLocaleDateString()} 
