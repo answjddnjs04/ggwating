@@ -9,6 +9,9 @@ export default function Home() {
   const [showQR, setShowQR] = useState(false)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [gameStarted, setGameStarted] = useState(false)
+  const [showTimer, setShowTimer] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(10 * 60) // 10분 = 600초
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null)
 
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
@@ -62,6 +65,19 @@ export default function Home() {
     }
   }
 
+  // 타이머 효과
+  useEffect(() => {
+    if (!gameStarted || !gameStartTime) return
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - gameStartTime) / 1000)
+      const remaining = Math.max(0, 10 * 60 - elapsed)
+      setTimeLeft(remaining)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [gameStarted, gameStartTime])
+
   const handleStartGame = async () => {
     const supabase = getSupabase()
     if (!supabase) return
@@ -78,8 +94,15 @@ export default function Home() {
       ], { onConflict: 'room_id' })
 
     if (!error) {
+      setGameStartTime(Date.now())
       setGameStarted(true)
     }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   // 과팅 시작 후 화면
@@ -103,32 +126,57 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-center mb-2 text-purple-600">
               🎊 과팅 시작!
             </h1>
-            <p className="text-gray-500 text-center mb-8">
-              {roomNumber}번 방 - 자기소개 시간
+            <p className="text-gray-500 text-center mb-6">
+              {roomNumber}번 방 - ❤️ 첫인상
             </p>
 
-            {/* 참여자 목록 */}
-            <div className="bg-purple-50 rounded-2xl p-6 mb-6">
-              <p className="text-sm text-purple-600 font-medium mb-4 text-center">
-                참여자 ({participants.length}명)
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {participants.map((p, i) => (
-                  <div
-                    key={i}
-                    className="bg-purple-500 text-white p-4 rounded-xl text-center font-medium"
-                  >
-                    {p.name}
-                  </div>
-                ))}
+            {/* 알림 스타일 메시지 */}
+            <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="bg-pink-500 rounded-full p-2 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <p className="text-gray-700 text-sm leading-relaxed pt-1">
+                  잠시후 있을 <span className="font-bold text-pink-600">첫인상 투표</span>까지 자유롭게 대화 해 주세요!
+                </p>
               </div>
             </div>
 
-            {/* 타이머 영역 (추후 구현) */}
-            <div className="text-center">
-              <p className="text-gray-400 text-sm">
-                자유롭게 자기소개를 해주세요!
-              </p>
+            {/* 타이머 영역 */}
+            <div className="mb-6">
+              <div
+                className={`text-center py-4 rounded-xl transition-all duration-300 ${
+                  showTimer
+                    ? 'bg-purple-100 text-purple-600'
+                    : 'bg-gray-100 text-gray-100'
+                }`}
+              >
+                <p className="text-3xl font-bold font-mono">
+                  {formatTime(timeLeft)}
+                </p>
+              </div>
+            </div>
+
+            {/* 버튼들 */}
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowTimer(!showTimer)}
+                className={`w-full py-3 rounded-xl font-medium transition ${
+                  showTimer
+                    ? 'bg-purple-100 text-purple-600 border-2 border-purple-300'
+                    : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
+                }`}
+              >
+                {showTimer ? '⏱️ 남은 시간 숨기기' : '⏱️ 남은 시간 보기'}
+              </button>
+
+              <button
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
+              >
+                💕 바로 투표하기
+              </button>
             </div>
           </div>
         </div>
