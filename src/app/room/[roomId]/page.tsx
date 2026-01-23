@@ -277,11 +277,16 @@ export default function RoomPage() {
 
           <button
             onClick={handleJoin}
-            disabled={!name.trim() || password.length !== 4 || loading || participants.length >= 6}
+            disabled={!name.trim() || password.length !== 4 || loading}
             className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-semibold text-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '참여 중...' : participants.length >= 6 ? '방이 가득 찼습니다' : '참여하기'}
+            {loading ? '참여 중...' : '참여하기'}
           </button>
+          {participants.length >= 6 && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              기존 참여자는 같은 이름과 비밀번호로 재입장 가능
+            </p>
+          )}
         </div>
       </div>
     </main>
