@@ -163,6 +163,37 @@ export default function RoomPage() {
   }
 
   if (joined) {
+    // 게임 시작 후 화면
+    if (gameStarted) {
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+            <h1 className="text-3xl font-bold text-center mb-2 text-purple-600">
+              🎊 과팅 시작!
+            </h1>
+            <p className="text-gray-500 text-center mb-6">
+              {roomId}번 방 - ❤️ 첫인상
+            </p>
+
+            {/* 알림 스타일 메시지 */}
+            <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-pink-500 rounded-full p-2 flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <p className="text-gray-700 text-sm leading-relaxed pt-1">
+                  잠시후 있을 <span className="font-bold text-pink-600">첫인상 투표</span>까지 자유롭게 대화 해 주세요!
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+      )
+    }
+
+    // 대기 중 화면
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
@@ -195,14 +226,7 @@ export default function RoomPage() {
             </div>
           </div>
 
-          {gameStarted ? (
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl">
-                <p className="text-lg font-bold">🎊 과팅이 시작되었습니다!</p>
-                <p className="text-sm mt-1 opacity-90">자기소개 시간입니다</p>
-              </div>
-            </div>
-          ) : participants.length < 6 ? (
+          {participants.length < 6 ? (
             <div className="text-center">
               <div className="inline-flex items-center gap-2 text-gray-500">
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
