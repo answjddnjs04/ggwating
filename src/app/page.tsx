@@ -8,6 +8,7 @@ export default function Home() {
   const [roomNumber, setRoomNumber] = useState('')
   const [showQR, setShowQR] = useState(false)
   const [participants, setParticipants] = useState<Participant[]>([])
+  const [gameStarted, setGameStarted] = useState(false)
 
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
@@ -59,6 +60,80 @@ export default function Home() {
     if (roomNumber.trim()) {
       setShowQR(true)
     }
+  }
+
+  const handleStartGame = async () => {
+    const supabase = getSupabase()
+    if (!supabase) return
+
+    // rooms 테이블에 시작 상태 저장
+    const { error } = await supabase
+      .from('rooms')
+      .upsert([
+        {
+          room_id: roomNumber,
+          started: true,
+          started_at: new Date().toISOString()
+        }
+      ], { onConflict: 'room_id' })
+
+    if (!error) {
+      setGameStarted(true)
+    }
+  }
+
+  // 과팅 시작 후 화면
+  if (gameStarted) {
+    return (
+      <main className="min-h-screen p-4">
+        {/* QR 코드 우측 상단 고정 */}
+        <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
+          <QRCodeSVG
+            value={roomUrl}
+            size={80}
+            level="H"
+            includeMargin={false}
+          />
+          <p className="text-xs text-center text-gray-500 mt-1">{roomNumber}번 방</p>
+        </div>
+
+        {/* 메인 콘텐츠 */}
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="bg-white rounded-3xl shadow-2xl p-8">
+            <h1 className="text-3xl font-bold text-center mb-2 text-purple-600">
+              🎊 과팅 시작!
+            </h1>
+            <p className="text-gray-500 text-center mb-8">
+              {roomNumber}번 방 - 자기소개 시간
+            </p>
+
+            {/* 참여자 목록 */}
+            <div className="bg-purple-50 rounded-2xl p-6 mb-6">
+              <p className="text-sm text-purple-600 font-medium mb-4 text-center">
+                참여자 ({participants.length}명)
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {participants.map((p, i) => (
+                  <div
+                    key={i}
+                    className="bg-purple-500 text-white p-4 rounded-xl text-center font-medium"
+                  >
+                    {p.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 타이머 영역 (추후 구현) */}
+            <div className="text-center">
+              <p className="text-gray-400 text-sm">
+                자유롭게 자기소개를 해주세요!
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -134,30 +209,30 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              {participants.length >= 6 && (
-                <div className="mt-4 text-center">
-                  <span className="inline-block bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-pulse">
-                    ✨ 모두 모였습니다!
-                  </span>
-                </div>
-              )}
             </div>
+
+            {/* 과팅 시작 버튼 (6명 모였을 때만 활성화) */}
+            {participants.length >= 6 ? (
+              <button
+                onClick={handleStartGame}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 rounded-xl font-bold text-xl hover:opacity-90 transition animate-pulse"
+              >
+                🚀 과팅 시작하기!
+              </button>
+            ) : (
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 text-gray-500">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  {6 - participants.length}명 더 필요합니다
+                </div>
+              </div>
+            )}
 
             <div className="text-center">
               <p className="text-xs text-gray-400 break-all">
                 {roomUrl}
               </p>
             </div>
-
-            <button
-              onClick={() => {
-                setShowQR(false)
-                setParticipants([])
-              }}
-              className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition"
-            >
-              다른 방 만들기
-            </button>
           </div>
         )}
       </div>
