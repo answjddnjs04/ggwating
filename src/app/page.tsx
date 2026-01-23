@@ -1,21 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import { getSupabase, Participant } from '@/lib/supabase'
 
 export default function Home() {
   const [roomNumber, setRoomNumber] = useState('')
   const [showQR, setShowQR] = useState(false)
+  const [participants, setParticipants] = useState<Participant[]>([])
+
+  const roomUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/room/${roomNumber}`
+    : `/room/${roomNumber}`
+
+  // 실시간 참여자 구독
+  useEffect(() => {
+    if (!showQR || !roomNumber) return
+
+    const supabase = getSupabase()
+    if (!supabase) return
+
+    // 초기 데이터 로드
+    const fetchParticipants = async () => {
+      const { data } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('room_id', roomNumber)
+        .order('created_at', { ascending: true })
+
+      if (data) setParticipants(data)
+    }
+
+    fetchParticipants()
+
+    // 실시간 구독
+    const channel = supabase
+      .channel(`room-${roomNumber}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'participants',
+          filter: `room_id=eq.${roomNumber}`
+        },
+        () => {
+          fetchParticipants()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [showQR, roomNumber])
 
   const handleCreateRoom = () => {
     if (roomNumber.trim()) {
       setShowQR(true)
     }
   }
-
-  const roomUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/room/${roomNumber}`
-    : `/room/${roomNumber}`
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -71,6 +115,34 @@ export default function Home() {
               </div>
             </div>
 
+            {/* 참여자 현황 */}
+            <div className="bg-purple-50 rounded-2xl p-4">
+              <p className="text-sm text-purple-600 font-medium mb-3 text-center">
+                현재 참여자 ({participants.length}/6)
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-xl text-center text-sm ${
+                      participants[i]
+                        ? 'bg-purple-500 text-white font-medium'
+                        : 'bg-gray-200 text-gray-400'
+                    }`}
+                  >
+                    {participants[i]?.name || '대기중'}
+                  </div>
+                ))}
+              </div>
+              {participants.length >= 6 && (
+                <div className="mt-4 text-center">
+                  <span className="inline-block bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-pulse">
+                    ✨ 모두 모였습니다!
+                  </span>
+                </div>
+              )}
+            </div>
+
             <div className="text-center">
               <p className="text-xs text-gray-400 break-all">
                 {roomUrl}
@@ -78,7 +150,10 @@ export default function Home() {
             </div>
 
             <button
-              onClick={() => setShowQR(false)}
+              onClick={() => {
+                setShowQR(false)
+                setParticipants([])
+              }}
               className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition"
             >
               다른 방 만들기
