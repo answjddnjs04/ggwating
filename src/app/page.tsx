@@ -229,9 +229,19 @@ export default function Home() {
             )}
 
             <div className="text-center">
-              <p className="text-xs text-gray-400 break-all">
+              <p className="text-xs text-gray-400 break-all mb-4">
                 {roomUrl}
               </p>
+              <button
+                onClick={() => {
+                  setShowQR(false)
+                  setRoomNumber('')
+                  setParticipants([])
+                }}
+                className="text-sm text-gray-500 hover:text-purple-600 transition underline"
+              >
+                ← 메인으로 돌아가기
+              </button>
             </div>
           </div>
         )}
