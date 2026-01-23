@@ -138,7 +138,21 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full relative">
+        {showQR && (
+          <button
+            onClick={() => {
+              setShowQR(false)
+              setRoomNumber('')
+              setParticipants([])
+            }}
+            className="absolute top-6 left-6 text-gray-400 hover:text-purple-600 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
         <h1 className="text-4xl font-bold text-center mb-2 text-purple-600">
           🎉 GGWATING
         </h1>
@@ -229,19 +243,9 @@ export default function Home() {
             )}
 
             <div className="text-center">
-              <p className="text-xs text-gray-400 break-all mb-4">
+              <p className="text-xs text-gray-400 break-all">
                 {roomUrl}
               </p>
-              <button
-                onClick={() => {
-                  setShowQR(false)
-                  setRoomNumber('')
-                  setParticipants([])
-                }}
-                className="text-sm text-gray-500 hover:text-purple-600 transition underline"
-              >
-                ← 메인으로 돌아가기
-              </button>
             </div>
           </div>
         )}
