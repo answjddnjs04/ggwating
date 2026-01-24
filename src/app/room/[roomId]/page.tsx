@@ -124,6 +124,20 @@ export default function RoomPage() {
         setMyName(name.trim())
         setMyGender(existingParticipant.gender)
         setJoined(true)
+
+        // 이미 투표했는지 확인
+        const { data: voteData } = await supabase
+          .from('votes')
+          .select('id')
+          .eq('room_id', roomId)
+          .eq('voter_name', name.trim())
+          .limit(1)
+
+        if (voteData && voteData.length > 0) {
+          setHasVoted(true)
+          setIsVoting(true) // 투표 화면으로 이동 (완료 상태로)
+        }
+
         setLoading(false)
         return
       }
