@@ -20,6 +20,8 @@ export default function RoomPage() {
   const [showVotePopup, setShowVotePopup] = useState(false)
   const [isVoting, setIsVoting] = useState(false)
   const [selectedPeople, setSelectedPeople] = useState<string[]>([])
+  const [hasVoted, setHasVoted] = useState(false)
+  const [voteSubmitting, setVoteSubmitting] = useState(false)
 
   // 실시간 참여자 구독
   useEffect(() => {
@@ -165,7 +167,71 @@ export default function RoomPage() {
   // 이성 참여자 필터
   const oppositeGenderParticipants = participants.filter(p => p.gender !== myGender)
 
+  // 투표 제출 함수
+  const handleSubmitVote = async () => {
+    if (selectedPeople.length === 0 || voteSubmitting) return
+
+    setVoteSubmitting(true)
+
+    const supabase = getSupabase()
+    if (!supabase) {
+      setVoteSubmitting(false)
+      return
+    }
+
+    try {
+      // votes 테이블에 투표 저장
+      const voteData = selectedPeople.map(targetName => ({
+        room_id: roomId,
+        voter_name: myName,
+        target_name: targetName
+      }))
+
+      const { error } = await supabase
+        .from('votes')
+        .insert(voteData)
+
+      if (error) {
+        console.error('Vote error:', error)
+        alert('투표 저장에 실패했습니다.')
+        setVoteSubmitting(false)
+        return
+      }
+
+      setHasVoted(true)
+    } catch (err) {
+      console.error('Vote error:', err)
+    } finally {
+      setVoteSubmitting(false)
+    }
+  }
+
   if (joined) {
+    // 투표 완료 화면
+    if (hasVoted) {
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+            <div className="text-6xl mb-4">✅</div>
+            <h1 className="text-2xl font-bold mb-2 text-purple-600">
+              투표 완료!
+            </h1>
+            <p className="text-gray-600 mb-4">
+              {selectedPeople.length}명에게 투표했습니다
+            </p>
+            <div className="bg-purple-50 rounded-xl p-4">
+              <p className="text-sm text-purple-600">
+                다른 참여자들의 투표를 기다리는 중...
+              </p>
+              <div className="flex justify-center mt-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      )
+    }
+
     // 투표 화면
     if (isVoting) {
       const toggleSelection = (name: string) => {
@@ -213,10 +279,11 @@ export default function RoomPage() {
             </p>
 
             <button
-              disabled={selectedPeople.length === 0}
+              onClick={handleSubmitVote}
+              disabled={selectedPeople.length === 0 || voteSubmitting}
               className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition disabled:opacity-50"
             >
-              투표 완료
+              {voteSubmitting ? '제출 중...' : '투표 완료'}
             </button>
           </div>
         </main>
@@ -291,25 +358,37 @@ export default function RoomPage() {
             <span className="font-bold text-purple-600">{myName}</span>님, 환영합니다!
           </p>
 
-          <div className="bg-purple-50 rounded-2xl p-4 mb-6">
+          <div className="bg-gray-50 rounded-2xl p-4 mb-6">
             <p className="text-sm text-purple-600 font-medium mb-3">
               현재 참여자 ({participants.length}/6)
             </p>
             <div className="grid grid-cols-3 gap-2">
-              {[...Array(6)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`p-3 rounded-xl text-center text-sm ${
-                    participants[i]
-                      ? participants[i].name === myName
-                        ? 'bg-pink-500 text-white font-medium ring-2 ring-pink-300'
-                        : 'bg-purple-500 text-white font-medium'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  {participants[i]?.name || '대기중'}
-                </div>
-              ))}
+              {[...Array(6)].map((_, i) => {
+                const participant = participants[i]
+                let blockClass = 'bg-gray-200 text-gray-400'
+
+                if (participant) {
+                  const isMe = participant.name === myName
+                  if (participant.gender === 'male') {
+                    blockClass = isMe
+                      ? 'bg-blue-500 text-white font-medium ring-2 ring-blue-300 ring-offset-1'
+                      : 'bg-blue-400 text-white font-medium'
+                  } else {
+                    blockClass = isMe
+                      ? 'bg-pink-500 text-white font-medium ring-2 ring-pink-300 ring-offset-1'
+                      : 'bg-pink-400 text-white font-medium'
+                  }
+                }
+
+                return (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-xl text-center text-sm ${blockClass}`}
+                  >
+                    {participant?.name || '대기중'}
+                  </div>
+                )
+              })}
             </div>
           </div>
 

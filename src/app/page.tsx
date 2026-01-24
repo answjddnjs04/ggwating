@@ -87,7 +87,12 @@ export default function Home() {
 
   const handleStartGame = async () => {
     const supabase = getSupabase()
-    if (!supabase) return
+    if (!supabase) {
+      console.error('Supabase not initialized')
+      return
+    }
+
+    console.log('Starting game for room:', roomNumber)
 
     // rooms 테이블에 시작 상태 저장
     const { error } = await supabase
@@ -101,10 +106,15 @@ export default function Home() {
         }
       ], { onConflict: 'room_id' })
 
-    if (!error) {
-      setGameStartTime(Date.now())
-      setGameStarted(true)
+    if (error) {
+      console.error('Error starting game:', error)
+      alert('게임 시작에 실패했습니다: ' + error.message)
+      return
     }
+
+    console.log('Game started successfully')
+    setGameStartTime(Date.now())
+    setGameStarted(true)
   }
 
   const handleStartVoting = async () => {
@@ -347,23 +357,30 @@ export default function Home() {
             </div>
 
             {/* 참여자 현황 */}
-            <div className="bg-purple-50 rounded-2xl p-4">
+            <div className="bg-gray-50 rounded-2xl p-4">
               <p className="text-sm text-purple-600 font-medium mb-3 text-center">
                 현재 참여자 ({participants.length}/6)
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`p-3 rounded-xl text-center text-sm ${
-                      participants[i]
-                        ? 'bg-purple-500 text-white font-medium'
-                        : 'bg-gray-200 text-gray-400'
-                    }`}
-                  >
-                    {participants[i]?.name || '대기중'}
-                  </div>
-                ))}
+                {[...Array(6)].map((_, i) => {
+                  const participant = participants[i]
+                  let blockClass = 'bg-gray-200 text-gray-400'
+
+                  if (participant) {
+                    blockClass = participant.gender === 'male'
+                      ? 'bg-blue-500 text-white font-medium'
+                      : 'bg-pink-500 text-white font-medium'
+                  }
+
+                  return (
+                    <div
+                      key={i}
+                      className={`p-3 rounded-xl text-center text-sm ${blockClass}`}
+                    >
+                      {participant?.name || '대기중'}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
