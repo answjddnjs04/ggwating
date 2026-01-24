@@ -120,7 +120,14 @@ export default function RoomPage() {
       const existingParticipant = participants.find(p => p.name === name.trim())
 
       if (existingParticipant) {
-        // 기존 참여자 - 바로 입장
+        // 기존 참여자 - 성별 확인
+        if (existingParticipant.gender !== gender) {
+          setError('이름과 성별이 일치하지 않습니다.')
+          setLoading(false)
+          return
+        }
+
+        // 성별 일치 - 바로 입장
         setMyName(name.trim())
         setMyGender(existingParticipant.gender)
         setJoined(true)

@@ -14,12 +14,13 @@ export default function Home() {
   const [gameStartTime, setGameStartTime] = useState<number | null>(null)
   const [showVotePopup, setShowVotePopup] = useState(false)
   const [votingStarted, setVotingStarted] = useState(false)
+  const [voteCount, setVoteCount] = useState(0)
 
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
     : `/room/${roomNumber}`
 
-  // 실시간 참여자 구독
+  // 실시간 참여자 구독 + 방 상태 복원
   useEffect(() => {
     if (!showQR || !roomNumber) return
 
@@ -37,9 +38,52 @@ export default function Home() {
       if (data) setParticipants(data)
     }
 
-    fetchParticipants()
+    // 투표 수 가져오기
+    const fetchVoteCount = async () => {
+      const { data } = await supabase
+        .from('votes')
+        .select('voter_name')
+        .eq('room_id', roomNumber)
 
-    // 실시간 구독
+      if (data) {
+        // 중복 제거 (한 사람당 하나의 투표)
+        const uniqueVoters = new Set(data.map(v => v.voter_name))
+        setVoteCount(uniqueVoters.size)
+      }
+    }
+
+    // 방 상태 복원
+    const restoreRoomState = async () => {
+      const { data } = await supabase
+        .from('rooms')
+        .select('started, voting, started_at')
+        .eq('room_id', roomNumber)
+        .single()
+
+      if (data) {
+        if (data.voting) {
+          // 투표 진행 중
+          setGameStarted(true)
+          setVotingStarted(true)
+          fetchVoteCount()
+        } else if (data.started) {
+          // 게임 시작됨, 타이머 복원
+          setGameStarted(true)
+          if (data.started_at) {
+            const startedAt = new Date(data.started_at).getTime()
+            setGameStartTime(startedAt)
+            const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+            const remaining = Math.max(0, 10 * 60 - elapsed)
+            setTimeLeft(remaining)
+          }
+        }
+      }
+    }
+
+    fetchParticipants()
+    restoreRoomState()
+
+    // 실시간 참여자 구독
     const channel = supabase
       .channel(`room-${roomNumber}`)
       .on(
@@ -56,8 +100,26 @@ export default function Home() {
       )
       .subscribe()
 
+    // 실시간 투표 구독
+    const voteChannel = supabase
+      .channel(`votes-${roomNumber}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'votes',
+          filter: `room_id=eq.${roomNumber}`
+        },
+        () => {
+          fetchVoteCount()
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(channel)
+      supabase.removeChannel(voteChannel)
     }
   }, [showQR, roomNumber])
 
@@ -198,6 +260,15 @@ export default function Home() {
             <p className="text-gray-600 mb-4">
               참여자들이 투표하고 있습니다
             </p>
+
+            {/* 투표 현황 */}
+            <div className="bg-purple-50 rounded-xl p-4 mb-4">
+              <p className="text-lg font-bold text-purple-600">
+                {voteCount} / 6
+              </p>
+              <p className="text-sm text-purple-400">명 투표 완료</p>
+            </div>
+
             <div className="inline-flex items-center gap-2 text-purple-500">
               <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
               <span>투표 대기 중...</span>
