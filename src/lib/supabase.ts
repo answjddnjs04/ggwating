@@ -4,7 +4,7 @@ export type Participant = {
   id?: string
   room_id: string
   name: string
-  password?: string
+  gender: 'male' | 'female'
   created_at?: string
 }
 

@@ -12,6 +12,8 @@ export default function Home() {
   const [showTimer, setShowTimer] = useState(false)
   const [timeLeft, setTimeLeft] = useState(10 * 60) // 10분 = 600초
   const [gameStartTime, setGameStartTime] = useState<number | null>(null)
+  const [showVotePopup, setShowVotePopup] = useState(false)
+  const [votingStarted, setVotingStarted] = useState(false)
 
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
@@ -65,7 +67,7 @@ export default function Home() {
     }
   }
 
-  // 타이머 효과
+  // 타이머 효과 + 10분 지나면 자동 팝업
   useEffect(() => {
     if (!gameStarted || !gameStartTime) return
 
@@ -73,10 +75,15 @@ export default function Home() {
       const elapsed = Math.floor((Date.now() - gameStartTime) / 1000)
       const remaining = Math.max(0, 10 * 60 - elapsed)
       setTimeLeft(remaining)
+
+      // 10분이 지나면 자동으로 투표 팝업
+      if (remaining === 0 && !showVotePopup && !votingStarted) {
+        setShowVotePopup(true)
+      }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [gameStarted, gameStartTime])
+  }, [gameStarted, gameStartTime, showVotePopup, votingStarted])
 
   const handleStartGame = async () => {
     const supabase = getSupabase()
@@ -89,6 +96,7 @@ export default function Home() {
         {
           room_id: roomNumber,
           started: true,
+          voting: false,
           started_at: new Date().toISOString()
         }
       ], { onConflict: 'room_id' })
@@ -99,10 +107,95 @@ export default function Home() {
     }
   }
 
+  const handleStartVoting = async () => {
+    const supabase = getSupabase()
+    if (!supabase) return
+
+    // rooms 테이블에 투표 상태 저장
+    await supabase
+      .from('rooms')
+      .update({ voting: true })
+      .eq('room_id', roomNumber)
+
+    setShowVotePopup(false)
+    setVotingStarted(true)
+  }
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // 투표 팝업
+  if (showVotePopup) {
+    return (
+      <main className="min-h-screen p-4">
+        {/* QR 코드 우측 상단 고정 */}
+        <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
+          <QRCodeSVG
+            value={roomUrl}
+            size={80}
+            level="H"
+            includeMargin={false}
+          />
+          <p className="text-xs text-center text-gray-500 mt-1">{roomNumber}번 방</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="text-6xl mb-4">❤️</div>
+            <h1 className="text-3xl font-bold mb-2 text-purple-600">
+              첫인상
+            </h1>
+            <p className="text-gray-600 mb-8 text-lg">
+              첫인상 투표 시간이 되었습니다.<br/>
+              준비가 되었다면 진행버튼을 눌러주세요
+            </p>
+            <button
+              onClick={handleStartVoting}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-xl hover:opacity-90 transition"
+            >
+              진행하기
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // 투표 시작됨 (참여자들이 투표 중)
+  if (votingStarted) {
+    return (
+      <main className="min-h-screen p-4">
+        {/* QR 코드 우측 상단 고정 */}
+        <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
+          <QRCodeSVG
+            value={roomUrl}
+            size={80}
+            level="H"
+            includeMargin={false}
+          />
+          <p className="text-xs text-center text-gray-500 mt-1">{roomNumber}번 방</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="text-6xl mb-4">💕</div>
+            <h1 className="text-3xl font-bold mb-2 text-purple-600">
+              첫인상 투표 진행 중
+            </h1>
+            <p className="text-gray-600 mb-4">
+              참여자들이 투표하고 있습니다
+            </p>
+            <div className="inline-flex items-center gap-2 text-purple-500">
+              <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+              <span>투표 대기 중...</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   // 과팅 시작 후 화면
@@ -173,6 +266,7 @@ export default function Home() {
               </button>
 
               <button
+                onClick={() => setShowVotePopup(true)}
                 className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
               >
                 💕 바로 투표하기

@@ -9,13 +9,17 @@ export default function RoomPage() {
   const roomId = params.roomId as string
 
   const [name, setName] = useState('')
-  const [password, setPassword] = useState('')
+  const [gender, setGender] = useState<'male' | 'female' | ''>('')
   const [joined, setJoined] = useState(false)
   const [myName, setMyName] = useState('')
+  const [myGender, setMyGender] = useState<'male' | 'female'>('male')
   const [participants, setParticipants] = useState<Participant[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
+  const [showVotePopup, setShowVotePopup] = useState(false)
+  const [isVoting, setIsVoting] = useState(false)
+  const [selectedPeople, setSelectedPeople] = useState<string[]>([])
 
   // 실시간 참여자 구독
   useEffect(() => {
@@ -63,8 +67,12 @@ export default function RoomPage() {
           filter: `room_id=eq.${roomId}`
         },
         (payload) => {
-          if (payload.new && (payload.new as { started?: boolean }).started) {
+          const newData = payload.new as { started?: boolean; voting?: boolean }
+          if (newData?.started) {
             setGameStarted(true)
+          }
+          if (newData?.voting) {
+            setShowVotePopup(true)
           }
         }
       )
@@ -74,12 +82,15 @@ export default function RoomPage() {
     const checkGameStatus = async () => {
       const { data } = await supabase
         .from('rooms')
-        .select('started')
+        .select('started, voting')
         .eq('room_id', roomId)
         .single()
 
       if (data?.started) {
         setGameStarted(true)
+      }
+      if (data?.voting) {
+        setShowVotePopup(true)
       }
     }
     checkGameStatus()
@@ -91,7 +102,7 @@ export default function RoomPage() {
   }, [roomId])
 
   const handleJoin = async () => {
-    if (!name.trim() || password.length !== 4) return
+    if (!name.trim() || !gender) return
 
     const supabase = getSupabase()
     if (!supabase) {
@@ -107,22 +118,10 @@ export default function RoomPage() {
       const existingParticipant = participants.find(p => p.name === name.trim())
 
       if (existingParticipant) {
-        // 기존 참여자 - 비밀번호 확인
-        const { data } = await supabase
-          .from('participants')
-          .select('*')
-          .eq('room_id', roomId)
-          .eq('name', name.trim())
-          .eq('password', password)
-          .single()
-
-        if (data) {
-          // 비밀번호 일치 - 재입장
-          setMyName(name.trim())
-          setJoined(true)
-        } else {
-          setError('비밀번호가 틀립니다!')
-        }
+        // 기존 참여자 - 바로 입장
+        setMyName(name.trim())
+        setMyGender(existingParticipant.gender)
+        setJoined(true)
         setLoading(false)
         return
       }
@@ -141,7 +140,7 @@ export default function RoomPage() {
           {
             room_id: roomId,
             name: name.trim(),
-            password: password
+            gender: gender
           }
         ])
 
@@ -153,6 +152,7 @@ export default function RoomPage() {
       }
 
       setMyName(name.trim())
+      setMyGender(gender)
       setJoined(true)
     } catch (err) {
       console.error('Error:', err)
@@ -162,7 +162,94 @@ export default function RoomPage() {
     }
   }
 
+  // 이성 참여자 필터
+  const oppositeGenderParticipants = participants.filter(p => p.gender !== myGender)
+
   if (joined) {
+    // 투표 화면
+    if (isVoting) {
+      const toggleSelection = (name: string) => {
+        setSelectedPeople(prev =>
+          prev.includes(name)
+            ? prev.filter(n => n !== name)
+            : [...prev, name]
+        )
+      }
+
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+            <h1 className="text-2xl font-bold text-center mb-2 text-purple-600">
+              ❤️ 첫인상 투표
+            </h1>
+            <p className="text-gray-500 text-center mb-2">
+              마음에 드는 이성을 모두 선택해주세요
+            </p>
+            <p className="text-sm text-purple-400 text-center mb-6">
+              여러 명 선택 가능합니다
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {oppositeGenderParticipants.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => toggleSelection(p.name)}
+                  className={`w-full p-4 rounded-xl text-left transition flex items-center justify-between ${
+                    selectedPeople.includes(p.name)
+                      ? 'bg-pink-500 text-white ring-2 ring-pink-300'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <span className="font-medium">{p.name}</span>
+                  {selectedPeople.includes(p.name) && (
+                    <span className="text-xl">💕</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-center text-sm text-gray-500 mb-4">
+              {selectedPeople.length}명 선택됨
+            </p>
+
+            <button
+              disabled={selectedPeople.length === 0}
+              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition disabled:opacity-50"
+            >
+              투표 완료
+            </button>
+          </div>
+        </main>
+      )
+    }
+
+    // 투표 팝업
+    if (showVotePopup) {
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+            <div className="text-5xl mb-4">❤️</div>
+            <h1 className="text-2xl font-bold mb-2 text-purple-600">
+              첫인상
+            </h1>
+            <p className="text-gray-600 mb-6">
+              첫인상 투표 시간이 되었습니다.<br/>
+              준비가 되었다면 진행버튼을 눌러주세요
+            </p>
+            <button
+              onClick={() => {
+                setShowVotePopup(false)
+                setIsVoting(true)
+              }}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
+            >
+              진행하기
+            </button>
+          </div>
+        </main>
+      )
+    }
+
     // 게임 시작 후 화면
     if (gameStarted) {
       return (
@@ -277,38 +364,51 @@ export default function RoomPage() {
               placeholder="이름을 입력하세요"
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-lg text-gray-800"
             />
+            <p className="text-xs text-gray-400 mt-1 text-center">
+              재입장 시 같은 이름을 입력하세요
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호 (4자리 숫자)
+              성별
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 4)
-                setPassword(val)
-              }}
-              placeholder="****"
-              maxLength={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-lg text-center tracking-widest text-gray-800"
-            />
-            <p className="text-xs text-gray-400 mt-1 text-center">
-              재입장 시 같은 이름과 비밀번호를 입력하세요
-            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setGender('male')}
+                className={`py-3 rounded-xl font-medium transition ${
+                  gender === 'male'
+                    ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                🙋‍♂️ 남성
+              </button>
+              <button
+                type="button"
+                onClick={() => setGender('female')}
+                className={`py-3 rounded-xl font-medium transition ${
+                  gender === 'female'
+                    ? 'bg-pink-500 text-white ring-2 ring-pink-300'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                🙋‍♀️ 여성
+              </button>
+            </div>
           </div>
 
           <button
             onClick={handleJoin}
-            disabled={!name.trim() || password.length !== 4 || loading}
+            disabled={!name.trim() || !gender || loading}
             className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-semibold text-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? '참여 중...' : '참여하기'}
           </button>
           {participants.length >= 6 && (
             <p className="text-xs text-gray-500 mt-2 text-center">
-              기존 참여자는 같은 이름과 비밀번호로 재입장 가능
+              기존 참여자는 같은 이름으로 재입장 가능
             </p>
           )}
         </div>
