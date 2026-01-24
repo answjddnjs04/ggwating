@@ -15,6 +15,8 @@ export default function Home() {
   const [showVotePopup, setShowVotePopup] = useState(false)
   const [votingStarted, setVotingStarted] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
+  const [coupleCount, setCoupleCount] = useState(0)
+  const [votingComplete, setVotingComplete] = useState(false)
 
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
@@ -38,17 +40,45 @@ export default function Home() {
       if (data) setParticipants(data)
     }
 
-    // 투표 수 가져오기
+    // 투표 수 가져오기 + 커플 매칭
     const fetchVoteCount = async () => {
       const { data } = await supabase
         .from('votes')
-        .select('voter_name')
+        .select('voter_name, target_name')
         .eq('room_id', roomNumber)
 
       if (data) {
         // 중복 제거 (한 사람당 하나의 투표)
         const uniqueVoters = new Set(data.map(v => v.voter_name))
-        setVoteCount(uniqueVoters.size)
+        const count = uniqueVoters.size
+        setVoteCount(count)
+
+        // 6명 모두 투표 완료 시 커플 계산
+        if (count >= 6) {
+          setVotingComplete(true)
+          // 서로 투표한 커플 찾기
+          let couples = 0
+          const votes = data as { voter_name: string; target_name: string }[]
+          const checked = new Set<string>()
+
+          for (const vote of votes) {
+            const pair = `${vote.voter_name}-${vote.target_name}`
+            const reversePair = `${vote.target_name}-${vote.voter_name}`
+
+            if (!checked.has(pair) && !checked.has(reversePair)) {
+              // 상대방도 나에게 투표했는지 확인
+              const mutual = votes.find(
+                v => v.voter_name === vote.target_name && v.target_name === vote.voter_name
+              )
+              if (mutual) {
+                couples++
+                checked.add(pair)
+                checked.add(reversePair)
+              }
+            }
+          }
+          setCoupleCount(couples)
+        }
       }
     }
 
@@ -253,26 +283,54 @@ export default function Home() {
 
         <div className="max-w-2xl mx-auto pt-8">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
-            <div className="text-6xl mb-4">💕</div>
-            <h1 className="text-3xl font-bold mb-2 text-purple-600">
-              첫인상 투표 진행 중
-            </h1>
-            <p className="text-gray-600 mb-4">
-              참여자들이 투표하고 있습니다
-            </p>
+            {votingComplete ? (
+              <>
+                <div className="text-6xl mb-4">💑</div>
+                <h1 className="text-3xl font-bold mb-2 text-purple-600">
+                  투표 완료!
+                </h1>
+                <p className="text-gray-600 mb-6">
+                  모든 참여자가 투표를 완료했습니다
+                </p>
 
-            {/* 투표 현황 */}
-            <div className="bg-purple-50 rounded-xl p-4 mb-4">
-              <p className="text-lg font-bold text-purple-600">
-                {voteCount} / 6
-              </p>
-              <p className="text-sm text-purple-400">명 투표 완료</p>
-            </div>
+                {/* 커플 결과 */}
+                <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl p-6 mb-4">
+                  <p className="text-sm text-gray-500 mb-2">성사된 커플</p>
+                  <p className="text-5xl font-bold text-pink-500 mb-2">
+                    {coupleCount}
+                  </p>
+                  <p className="text-lg text-purple-600 font-medium">
+                    {coupleCount > 0 ? '커플이 탄생했습니다! 🎉' : '아쉽게도 매칭된 커플이 없습니다'}
+                  </p>
+                </div>
 
-            <div className="inline-flex items-center gap-2 text-purple-500">
-              <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-              <span>투표 대기 중...</span>
-            </div>
+                <p className="text-xs text-gray-400">
+                  누가 매칭되었는지는 비밀입니다 🤫
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl mb-4">💕</div>
+                <h1 className="text-3xl font-bold mb-2 text-purple-600">
+                  첫인상 투표 진행 중
+                </h1>
+                <p className="text-gray-600 mb-4">
+                  참여자들이 투표하고 있습니다
+                </p>
+
+                {/* 투표 현황 */}
+                <div className="bg-purple-50 rounded-xl p-4 mb-4">
+                  <p className="text-lg font-bold text-purple-600">
+                    {voteCount} / 6 명 투표 완료
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-2 text-purple-500">
+                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span>투표 대기 중...</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>
