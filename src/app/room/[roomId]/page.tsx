@@ -231,7 +231,7 @@ export default function RoomPage() {
               투표 완료!
             </h1>
             <p className="text-gray-600 mb-4">
-              {selectedPeople.length}명에게 투표했습니다
+              <span className="font-bold text-pink-500">{selectedPeople[0]}</span>님에게 투표했습니다
             </p>
             <div className="bg-purple-50 rounded-xl p-4">
               <p className="text-sm text-purple-600">
@@ -248,11 +248,10 @@ export default function RoomPage() {
 
     // 투표 화면
     if (isVoting) {
-      const toggleSelection = (name: string) => {
+      const selectPerson = (name: string) => {
+        // 한 명만 선택 가능 - 같은 사람 클릭하면 해제, 다른 사람 클릭하면 변경
         setSelectedPeople(prev =>
-          prev.includes(name)
-            ? prev.filter(n => n !== name)
-            : [...prev, name]
+          prev.includes(name) ? [] : [name]
         )
       }
 
@@ -262,18 +261,15 @@ export default function RoomPage() {
             <h1 className="text-2xl font-bold text-center mb-2 text-purple-600">
               ❤️ 첫인상 투표
             </h1>
-            <p className="text-gray-500 text-center mb-2">
-              마음에 드는 이성을 모두 선택해주세요
-            </p>
-            <p className="text-sm text-purple-400 text-center mb-6">
-              여러 명 선택 가능합니다
+            <p className="text-gray-500 text-center mb-6">
+              가장 마음에 드는 이성 한 명을 선택해주세요
             </p>
 
             <div className="space-y-3 mb-6">
               {oppositeGenderParticipants.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => toggleSelection(p.name)}
+                  onClick={() => selectPerson(p.name)}
                   className={`w-full p-4 rounded-xl text-left transition flex items-center justify-between ${
                     selectedPeople.includes(p.name)
                       ? 'bg-pink-500 text-white ring-2 ring-pink-300'
@@ -287,10 +283,6 @@ export default function RoomPage() {
                 </button>
               ))}
             </div>
-
-            <p className="text-center text-sm text-gray-500 mb-4">
-              {selectedPeople.length}명 선택됨
-            </p>
 
             <button
               onClick={handleSubmitVote}
