@@ -173,6 +173,9 @@ export default function Home() {
       }
     }
 
+    // 초기 답변 데이터 로드
+    fetchSeatChangeAnswers()
+
     const answerChannel = supabase
       .channel(`answers-${roomNumber}`)
       .on(
