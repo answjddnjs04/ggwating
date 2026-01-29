@@ -24,6 +24,7 @@ export default function Home() {
   const [showSeatChangePopup, setShowSeatChangePopup] = useState(false)
   const [seatChangeStarted, setSeatChangeStarted] = useState(false)
   const [showSeatChangeTimer, setShowSeatChangeTimer] = useState(false)
+  const [showSeatChangeWaiting, setShowSeatChangeWaiting] = useState(false)
   const [currentQuestion, setCurrentQuestion] = useState('당신의 이상형은?')
   const [answerCount, setAnswerCount] = useState(0)
   const [answers, setAnswers] = useState<string[]>([])
@@ -489,84 +490,100 @@ export default function Home() {
         <div className="max-w-2xl mx-auto pt-8">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
             {votingComplete ? (
-              <>
-                <h1 className="text-3xl font-bold text-center mb-2 text-purple-600">
-                  🎊 첫인상 투표 완료!
-                </h1>
-                <p className="text-gray-500 text-center mb-6">
-                  {roomNumber}번 방 - 🪑 자리 바꾸기
-                </p>
+              showSeatChangeWaiting ? (
+                // 자리 바꾸기 대기 화면
+                <>
+                  <h1 className="text-3xl font-bold text-center mb-2 text-purple-600">
+                    🎊 첫인상 투표 완료!
+                  </h1>
+                  <p className="text-gray-500 text-center mb-6">
+                    {roomNumber}번 방 - 🪑 자리 바꾸기
+                  </p>
 
-                {/* 커플 결과 알림 */}
-                <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-pink-500 rounded-full p-2 flex-shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-gray-700 text-sm leading-relaxed">
-                        성사된 커플: <span className="font-bold text-pink-600">{coupleCount}쌍</span>
-                        {coupleCount > 0 ? ' 🎉' : ''}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        누가 매칭되었는지는 비밀입니다 🤫
+                  {/* 자리 바꾸기 안내 */}
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-purple-500 rounded-full p-2 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-700 text-sm leading-relaxed pt-1">
+                        잠시후 있을 <span className="font-bold text-purple-600">자리 바꾸기</span>까지 자유롭게 대화 해 주세요!
                       </p>
                     </div>
                   </div>
-                </div>
 
-                {/* 자리 바꾸기 안내 */}
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-purple-500 rounded-full p-2 flex-shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                      </svg>
+                  {/* 타이머 영역 */}
+                  <div className="mb-6">
+                    <div
+                      className={`text-center py-4 rounded-xl transition-all duration-300 ${
+                        showSeatChangeTimer
+                          ? 'bg-purple-100 text-purple-600'
+                          : 'bg-gray-100 text-gray-100'
+                      }`}
+                    >
+                      <p className="text-3xl font-bold font-mono">
+                        {formatTime(seatChangeTimeLeft)}
+                      </p>
                     </div>
-                    <p className="text-gray-700 text-sm leading-relaxed pt-1">
-                      잠시후 있을 <span className="font-bold text-purple-600">자리 바꾸기</span>까지 자유롭게 대화 해 주세요!
+                  </div>
+
+                  {/* 버튼들 */}
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowSeatChangeTimer(!showSeatChangeTimer)}
+                      className={`w-full py-3 rounded-xl font-medium transition ${
+                        showSeatChangeTimer
+                          ? 'bg-purple-100 text-purple-600 border-2 border-purple-300'
+                          : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
+                      }`}
+                    >
+                      {showSeatChangeTimer ? '⏱️ 남은 시간 숨기기' : '⏱️ 남은 시간 보기'}
+                    </button>
+
+                    <button
+                      onClick={() => setShowSeatChangePopup(true)}
+                      className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
+                    >
+                      🪑 바로 자리 바꾸기
+                    </button>
+                  </div>
+                </>
+              ) : (
+                // 커플 결과 화면
+                <>
+                  <div className="text-6xl mb-4">💑</div>
+                  <h1 className="text-3xl font-bold mb-2 text-purple-600">
+                    첫인상 투표 완료!
+                  </h1>
+                  <p className="text-gray-600 mb-4">
+                    모든 참여자가 투표를 완료했습니다
+                  </p>
+
+                  {/* 커플 결과 */}
+                  <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl p-6 mb-4">
+                    <p className="text-sm text-gray-500 mb-2">성사된 커플</p>
+                    <p className="text-5xl font-bold text-pink-500 mb-2">
+                      {coupleCount}
+                    </p>
+                    <p className="text-lg text-purple-600 font-medium">
+                      {coupleCount > 0 ? '커플이 탄생했습니다! 🎉' : '아쉽게도 매칭된 커플이 없습니다'}
                     </p>
                   </div>
-                </div>
 
-                {/* 타이머 영역 */}
-                <div className="mb-6">
-                  <div
-                    className={`text-center py-4 rounded-xl transition-all duration-300 ${
-                      showSeatChangeTimer
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'bg-gray-100 text-gray-100'
-                    }`}
-                  >
-                    <p className="text-3xl font-bold font-mono">
-                      {formatTime(seatChangeTimeLeft)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 버튼들 */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowSeatChangeTimer(!showSeatChangeTimer)}
-                    className={`w-full py-3 rounded-xl font-medium transition ${
-                      showSeatChangeTimer
-                        ? 'bg-purple-100 text-purple-600 border-2 border-purple-300'
-                        : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
-                    }`}
-                  >
-                    {showSeatChangeTimer ? '⏱️ 남은 시간 숨기기' : '⏱️ 남은 시간 보기'}
-                  </button>
+                  <p className="text-xs text-gray-400 mb-6">
+                    누가 매칭되었는지는 비밀입니다 🤫
+                  </p>
 
                   <button
-                    onClick={() => setShowSeatChangePopup(true)}
-                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
+                    onClick={() => setShowSeatChangeWaiting(true)}
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition"
                   >
-                    🪑 바로 자리 바꾸기
+                    다음 진행하기
                   </button>
-                </div>
-              </>
+                </>
+              )
             ) : (
               <>
                 <div className="text-6xl mb-4">💕</div>
