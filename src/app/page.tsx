@@ -18,6 +18,17 @@ export default function Home() {
   const [coupleCount, setCoupleCount] = useState(0)
   const [votingComplete, setVotingComplete] = useState(false)
 
+  // 자리 바꾸기 관련 상태
+  const [seatChangeTimeLeft, setSeatChangeTimeLeft] = useState(10 * 60)
+  const [seatChangeStartTime, setSeatChangeStartTime] = useState<number | null>(null)
+  const [showSeatChangePopup, setShowSeatChangePopup] = useState(false)
+  const [seatChangeStarted, setSeatChangeStarted] = useState(false)
+  const [currentQuestion, setCurrentQuestion] = useState('당신의 이상형은?')
+  const [answerCount, setAnswerCount] = useState(0)
+  const [answers, setAnswers] = useState<string[]>([])
+
+  const questions = ['당신의 이상형은?', '나의 MBTI는?']
+
   const roomUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/room/${roomNumber}`
     : `/room/${roomNumber}`
@@ -147,9 +158,41 @@ export default function Home() {
       )
       .subscribe()
 
+    // 자리 바꾸기 답변 구독
+    const fetchSeatChangeAnswers = async () => {
+      const { data } = await supabase
+        .from('seat_change_answers')
+        .select('*')
+        .eq('room_id', roomNumber)
+        .order('created_at', { ascending: true })
+
+      if (data) {
+        // 답변 수와 답변 목록 저장
+        setAnswerCount(data.length)
+        setAnswers(data.map((a: { answer: string }) => a.answer))
+      }
+    }
+
+    const answerChannel = supabase
+      .channel(`answers-${roomNumber}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'seat_change_answers',
+          filter: `room_id=eq.${roomNumber}`
+        },
+        () => {
+          fetchSeatChangeAnswers()
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(channel)
       supabase.removeChannel(voteChannel)
+      supabase.removeChannel(answerChannel)
     }
   }, [showQR, roomNumber])
 
@@ -159,9 +202,9 @@ export default function Home() {
     }
   }
 
-  // 타이머 효과 + 10분 지나면 자동 팝업
+  // 첫인상 투표 타이머
   useEffect(() => {
-    if (!gameStarted || !gameStartTime) return
+    if (!gameStarted || !gameStartTime || votingStarted) return
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - gameStartTime) / 1000)
@@ -176,6 +219,31 @@ export default function Home() {
 
     return () => clearInterval(interval)
   }, [gameStarted, gameStartTime, showVotePopup, votingStarted])
+
+  // 자리 바꾸기 타이머
+  useEffect(() => {
+    if (!votingComplete || !seatChangeStartTime || seatChangeStarted) return
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - seatChangeStartTime) / 1000)
+      const remaining = Math.max(0, 10 * 60 - elapsed)
+      setSeatChangeTimeLeft(remaining)
+
+      // 10분이 지나면 자동으로 자리 바꾸기 팝업
+      if (remaining === 0 && !showSeatChangePopup && !seatChangeStarted) {
+        setShowSeatChangePopup(true)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [votingComplete, seatChangeStartTime, showSeatChangePopup, seatChangeStarted])
+
+  // 투표 완료 시 자리 바꾸기 타이머 시작
+  useEffect(() => {
+    if (votingComplete && !seatChangeStartTime) {
+      setSeatChangeStartTime(Date.now())
+    }
+  }, [votingComplete, seatChangeStartTime])
 
   const handleStartGame = async () => {
     const supabase = getSupabase()
@@ -223,10 +291,141 @@ export default function Home() {
     setVotingStarted(true)
   }
 
+  const handleStartSeatChange = async () => {
+    const supabase = getSupabase()
+    if (!supabase) return
+
+    // rooms 테이블에 자리 바꾸기 상태 저장
+    await supabase
+      .from('rooms')
+      .update({
+        seat_change: true,
+        seat_change_question: currentQuestion
+      })
+      .eq('room_id', roomNumber)
+
+    setShowSeatChangePopup(false)
+    setSeatChangeStarted(true)
+  }
+
+  const changeQuestion = () => {
+    const currentIndex = questions.indexOf(currentQuestion)
+    const nextIndex = (currentIndex + 1) % questions.length
+    setCurrentQuestion(questions[nextIndex])
+  }
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // 자리 바꾸기 진행 중
+  if (seatChangeStarted) {
+    return (
+      <main className="min-h-screen p-4">
+        <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
+          <QRCodeSVG value={roomUrl} size={80} level="H" includeMargin={false} />
+          <p className="text-xs text-center text-gray-500 mt-1">{roomNumber}번 방</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="text-6xl mb-4">🪑</div>
+            <h1 className="text-3xl font-bold mb-2 text-purple-600">
+              자리 바꾸기
+            </h1>
+            <p className="text-gray-600 mb-2">
+              질문: <span className="font-bold text-pink-500">"{currentQuestion}"</span>
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              답변을 확인하고 대화를 통해 선택해주세요
+            </p>
+
+            {/* 답변 현황 */}
+            <div className="bg-pink-50 rounded-xl p-4 mb-4">
+              <p className="text-sm text-pink-600 font-medium">
+                여성 답변: {answerCount} / 3 명 완료
+              </p>
+            </div>
+
+            {/* 익명 답변 목록 */}
+            {answers.length > 0 && (
+              <div className="space-y-3 mb-4 text-left">
+                <p className="text-sm text-gray-500 font-medium">익명 답변:</p>
+                {answers.map((answer, index) => (
+                  <div key={index} className="bg-gray-100 rounded-xl p-4">
+                    <p className="text-gray-700">{answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {answers.length === 0 && (
+              <div className="inline-flex items-center gap-2 text-purple-500">
+                <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                <span>답변 대기 중...</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // 자리 바꾸기 팝업
+  if (showSeatChangePopup) {
+    return (
+      <main className="min-h-screen p-4">
+        <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
+          <QRCodeSVG value={roomUrl} size={80} level="H" includeMargin={false} />
+          <p className="text-xs text-center text-gray-500 mt-1">{roomNumber}번 방</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="text-6xl mb-4">🪑</div>
+            <h1 className="text-3xl font-bold mb-2 text-purple-600">
+              자리 바꾸기
+            </h1>
+            <p className="text-gray-600 mb-4 text-lg">
+              자리 바꾸기 시간입니다.<br/>
+              준비가 되었다면 진행버튼을 눌러주세요
+            </p>
+
+            {/* 룰 설명 */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              <p className="text-sm text-gray-600">
+                여성분들이 익명으로 질문에 답하면 답변이 화면에 표시됩니다. 대화를 통해 자유롭게 짝을 정해주세요.
+              </p>
+            </div>
+
+            {/* 질문 선택 */}
+            <div className="mb-6">
+              <p className="text-sm text-gray-500 mb-2">현재 질문</p>
+              <div className="bg-purple-100 rounded-xl p-4 mb-3">
+                <p className="text-lg font-bold text-purple-600">
+                  "{currentQuestion}"
+                </p>
+              </div>
+              <button
+                onClick={changeQuestion}
+                className="text-purple-500 text-sm underline hover:text-purple-700"
+              >
+                🔄 질문 바꾸기
+              </button>
+            </div>
+
+            <button
+              onClick={handleStartSeatChange}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold text-xl hover:opacity-90 transition"
+            >
+              진행하기
+            </button>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   // 투표 팝업
@@ -287,9 +486,9 @@ export default function Home() {
               <>
                 <div className="text-6xl mb-4">💑</div>
                 <h1 className="text-3xl font-bold mb-2 text-purple-600">
-                  투표 완료!
+                  첫인상 투표 완료!
                 </h1>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 mb-4">
                   모든 참여자가 투표를 완료했습니다
                 </p>
 
@@ -304,9 +503,23 @@ export default function Home() {
                   </p>
                 </div>
 
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 mb-6">
                   누가 매칭되었는지는 비밀입니다 🤫
                 </p>
+
+                {/* 자리 바꾸기 타이머 */}
+                <div className="border-t pt-6">
+                  <p className="text-sm text-gray-500 mb-2">다음 이벤트: 🪑 자리 바꾸기</p>
+                  <p className="text-2xl font-bold text-purple-600 font-mono mb-4">
+                    {formatTime(seatChangeTimeLeft)}
+                  </p>
+                  <button
+                    onClick={() => setShowSeatChangePopup(true)}
+                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-3 rounded-xl font-bold hover:opacity-90 transition"
+                  >
+                    🪑 바로 자리 바꾸기
+                  </button>
+                </div>
               </>
             ) : (
               <>

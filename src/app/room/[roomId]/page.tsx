@@ -23,6 +23,13 @@ export default function RoomPage() {
   const [hasVoted, setHasVoted] = useState(false)
   const [voteSubmitting, setVoteSubmitting] = useState(false)
 
+  // 자리 바꾸기 관련 상태
+  const [seatChangeStarted, setSeatChangeStarted] = useState(false)
+  const [currentQuestion, setCurrentQuestion] = useState('')
+  const [myAnswer, setMyAnswer] = useState('')
+  const [hasAnswered, setHasAnswered] = useState(false)
+  const [answerSubmitting, setAnswerSubmitting] = useState(false)
+
   // 실시간 참여자 구독
   useEffect(() => {
     const supabase = getSupabase()
@@ -69,12 +76,18 @@ export default function RoomPage() {
           filter: `room_id=eq.${roomId}`
         },
         (payload) => {
-          const newData = payload.new as { started?: boolean; voting?: boolean }
+          const newData = payload.new as { started?: boolean; voting?: boolean; seat_change?: boolean; seat_change_question?: string }
           if (newData?.started) {
             setGameStarted(true)
           }
           if (newData?.voting) {
             setShowVotePopup(true)
+          }
+          if (newData?.seat_change) {
+            setSeatChangeStarted(true)
+            if (newData?.seat_change_question) {
+              setCurrentQuestion(newData.seat_change_question)
+            }
           }
         }
       )
@@ -84,7 +97,7 @@ export default function RoomPage() {
     const checkGameStatus = async () => {
       const { data } = await supabase
         .from('rooms')
-        .select('started, voting')
+        .select('started, voting, seat_change, seat_change_question')
         .eq('room_id', roomId)
         .single()
 
@@ -93,6 +106,12 @@ export default function RoomPage() {
       }
       if (data?.voting) {
         setShowVotePopup(true)
+      }
+      if (data?.seat_change) {
+        setSeatChangeStarted(true)
+        if (data?.seat_change_question) {
+          setCurrentQuestion(data.seat_change_question)
+        }
       }
     }
     checkGameStatus()
@@ -145,6 +164,20 @@ export default function RoomPage() {
           setIsVoting(true) // 투표 화면으로 이동 (완료 상태로)
         }
 
+        // 이미 자리 바꾸기 답변 했는지 확인 (여성만)
+        if (existingParticipant.gender === 'female') {
+          const { data: answerData } = await supabase
+            .from('seat_change_answers')
+            .select('id')
+            .eq('room_id', roomId)
+            .eq('participant_name', name.trim())
+            .limit(1)
+
+          if (answerData && answerData.length > 0) {
+            setHasAnswered(true)
+          }
+        }
+
         setLoading(false)
         return
       }
@@ -188,6 +221,43 @@ export default function RoomPage() {
   // 이성 참여자 필터
   const oppositeGenderParticipants = participants.filter(p => p.gender !== myGender)
 
+  // 자리 바꾸기 답변 제출 (여성)
+  const handleSubmitAnswer = async () => {
+    if (!myAnswer.trim() || answerSubmitting) return
+
+    setAnswerSubmitting(true)
+
+    const supabase = getSupabase()
+    if (!supabase) {
+      setAnswerSubmitting(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('seat_change_answers')
+        .insert([{
+          room_id: roomId,
+          participant_name: myName,
+          answer: myAnswer.trim()
+        }])
+
+      if (error) {
+        console.error('Answer error:', error)
+        alert('답변 저장에 실패했습니다.')
+        setAnswerSubmitting(false)
+        return
+      }
+
+      setHasAnswered(true)
+    } catch (err) {
+      console.error('Answer error:', err)
+    } finally {
+      setAnswerSubmitting(false)
+    }
+  }
+
+
   // 투표 제출 함수
   const handleSubmitVote = async () => {
     if (selectedPeople.length === 0 || voteSubmitting) return
@@ -228,6 +298,104 @@ export default function RoomPage() {
   }
 
   if (joined) {
+    // 자리 바꾸기 진행 중
+    if (seatChangeStarted) {
+      // 여성 - 답변 완료 화면
+      if (myGender === 'female' && hasAnswered) {
+        return (
+          <main className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <h1 className="text-2xl font-bold mb-2 text-purple-600">
+                답변 완료!
+              </h1>
+              <p className="text-gray-600 mb-4">
+                익명으로 답변이 제출되었습니다
+              </p>
+              <div className="bg-pink-50 rounded-xl p-4">
+                <p className="text-sm text-pink-600">
+                  남성분들이 선택할 때까지 기다려주세요...
+                </p>
+                <div className="flex justify-center mt-2">
+                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        )
+      }
+
+      // 여성 - 답변 입력 화면
+      if (myGender === 'female' && !hasAnswered) {
+        return (
+          <main className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+              <div className="text-5xl text-center mb-4">🪑</div>
+              <h1 className="text-2xl font-bold text-center mb-2 text-purple-600">
+                자리 바꾸기
+              </h1>
+              <p className="text-gray-500 text-center mb-6">
+                질문에 익명으로 답변해주세요
+              </p>
+
+              <div className="bg-purple-100 rounded-xl p-4 mb-6">
+                <p className="text-lg font-bold text-purple-600 text-center">
+                  "{currentQuestion}"
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <textarea
+                  value={myAnswer}
+                  onChange={(e) => setMyAnswer(e.target.value)}
+                  placeholder="답변을 입력하세요..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none text-gray-800 resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <button
+                onClick={handleSubmitAnswer}
+                disabled={!myAnswer.trim() || answerSubmitting}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition disabled:opacity-50"
+              >
+                {answerSubmitting ? '제출 중...' : '익명으로 답변 제출'}
+              </button>
+
+              <p className="text-xs text-gray-400 text-center mt-3">
+                답변은 익명으로 제출됩니다
+              </p>
+            </div>
+          </main>
+        )
+      }
+
+      // 남성 - 자리 바꾸기 대기 화면
+      if (myGender === 'male') {
+        return (
+          <main className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+              <div className="text-6xl mb-4">🪑</div>
+              <h1 className="text-2xl font-bold mb-2 text-purple-600">
+                자리 바꾸기
+              </h1>
+              <p className="text-gray-600 mb-4">
+                여성분들의 답변을 기다리는 중입니다
+              </p>
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600">
+                  메인 화면에서 답변을 확인 후<br/>대화를 통해 선택해주세요
+                </p>
+                <div className="flex justify-center mt-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        )
+      }
+    }
+
     // 투표 완료 화면
     if (hasVoted) {
       return (
