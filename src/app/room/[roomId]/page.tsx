@@ -314,7 +314,7 @@ export default function RoomPage() {
               </p>
               <div className="bg-pink-50 rounded-xl p-4">
                 <p className="text-sm text-pink-600">
-                  남성분들이 선택할 때까지 기다려주세요...
+                  다른 여성분들이 답변을 완료할 때까지 기다려주세요...
                 </p>
                 <div className="flex justify-center mt-2">
                   <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>

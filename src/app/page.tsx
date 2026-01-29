@@ -322,6 +322,8 @@ export default function Home() {
 
   // 자리 바꾸기 진행 중
   if (seatChangeStarted) {
+    const allAnswered = answerCount >= 3
+
     return (
       <main className="min-h-screen p-4">
         <div className="fixed top-4 right-4 bg-white rounded-2xl shadow-lg p-3 z-50">
@@ -331,7 +333,7 @@ export default function Home() {
 
         <div className="max-w-2xl mx-auto pt-8">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
-            <div className="text-6xl mb-4">🪑</div>
+            <div className="text-6xl mb-4">{allAnswered ? '🎉' : '🪑'}</div>
             <h1 className="text-3xl font-bold mb-2 text-purple-600">
               자리 바꾸기
             </h1>
@@ -339,7 +341,9 @@ export default function Home() {
               질문: <span className="font-bold text-pink-500">"{currentQuestion}"</span>
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              답변을 확인하고 대화를 통해 선택해주세요
+              {allAnswered
+                ? '모든 답변이 공개되었습니다! 대화를 통해 짝을 정해주세요'
+                : '여성분들이 답변을 작성하고 있습니다'}
             </p>
 
             {/* 답변 현황 */}
@@ -349,8 +353,8 @@ export default function Home() {
               </p>
             </div>
 
-            {/* 익명 답변 목록 */}
-            {answers.length > 0 && (
+            {/* 3명 모두 답변 완료 시에만 익명 답변 공개 */}
+            {allAnswered ? (
               <div className="space-y-3 mb-4 text-left">
                 <p className="text-sm text-gray-500 font-medium">익명 답변:</p>
                 {answers.map((answer, index) => (
@@ -359,9 +363,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {answers.length === 0 && (
+            ) : (
               <div className="inline-flex items-center gap-2 text-purple-500">
                 <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
                 <span>답변 대기 중...</span>
