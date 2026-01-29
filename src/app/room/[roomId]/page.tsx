@@ -338,11 +338,15 @@ export default function RoomPage() {
                 질문에 익명으로 답변해주세요
               </p>
 
-              <div className="bg-purple-100 rounded-xl p-4 mb-6">
+              <div className="bg-purple-100 rounded-xl p-4 mb-4">
                 <p className="text-lg font-bold text-purple-600 text-center">
                   "{currentQuestion}"
                 </p>
               </div>
+
+              <p className="text-xs text-pink-500 mb-4">
+                (MBTI는 겹칠 수 있으니 문장으로 답변해주세요!)
+              </p>
 
               <div className="mb-6">
                 <textarea
